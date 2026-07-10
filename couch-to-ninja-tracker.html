@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Couch to Ninja — Tracker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=DM+Sans:wght@400;500;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0C0E11;
+  --panel:#14171C;
+  --panel2:#1B1F26;
+  --line:#262B33;
+  --text:#ECEAE4;
+  --muted:#828B97;
+  --train:#FF5A36;
+  --train-dim:rgba(255,90,54,.14);
+  --media:#4E9CF5;
+  --media-dim:rgba(78,156,245,.14);
+  --done:#3DD68C;
+  --radius:14px;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;font-size:16px;line-height:1.45}
+body{padding:calc(env(safe-area-inset-top) + 18px) 16px calc(env(safe-area-inset-bottom) + 32px);max-width:520px;margin:0 auto}
+button{font-family:inherit;color:inherit;background:none;border:none;cursor:pointer}
+button:focus-visible,input:focus-visible{outline:2px solid var(--media);outline-offset:2px}
+h1{font-family:'Syne',sans-serif;font-weight:800;font-size:22px;letter-spacing:.04em;text-transform:uppercase}
+h1 .accent{color:var(--train)}
+.sub{font-family:'DM Mono',monospace;font-size:12px;color:var(--muted);margin-top:2px}
+header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:18px}
+.mode-toggle{font-family:'DM Mono',monospace;font-size:11px;color:var(--muted);border:1px solid var(--line);border-radius:20px;padding:7px 12px;background:var(--panel)}
+.mode-toggle b{color:var(--text);font-weight:500}
+
+/* ---- course rail (day strip) ---- */
+.course{position:relative;display:flex;justify-content:space-between;margin:6px 4px 22px;padding-top:4px}
+.course::before{content:"";position:absolute;left:18px;right:18px;top:21px;height:2px;background:var(--line);z-index:0}
+.course .fill{position:absolute;left:18px;top:21px;height:2px;background:var(--train);z-index:0;transition:width .4s ease}
+.obstacle{position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;gap:6px;width:36px}
+.obstacle .node{width:34px;height:34px;border-radius:50%;border:2px solid var(--line);background:var(--bg);display:flex;align-items:center;justify-content:center;font-family:'DM Mono',monospace;font-size:11px;color:var(--muted);transition:all .2s}
+.obstacle .lbl{font-family:'DM Mono',monospace;font-size:10px;color:var(--muted);text-transform:uppercase}
+.obstacle.done .node{border-color:var(--done);color:var(--done)}
+.obstacle.today .node{border-color:var(--train);color:var(--text);box-shadow:0 0 0 4px var(--train-dim)}
+.obstacle.selected .node{background:var(--panel2);border-color:var(--text);color:var(--text)}
+.obstacle.selected .lbl{color:var(--text)}
+
+/* ---- cards ---- */
+.card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin-bottom:14px}
+.card-head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:12px}
+.card-title{font-family:'Syne',sans-serif;font-weight:700;font-size:14px;text-transform:uppercase;letter-spacing:.06em}
+.card-meta{font-family:'DM Mono',monospace;font-size:11px;color:var(--muted)}
+
+/* ---- tasks ---- */
+.task{display:flex;align-items:flex-start;gap:12px;padding:11px 10px;border-radius:10px;width:100%;text-align:left;transition:background .15s}
+.task + .task{margin-top:2px}
+.task:active{background:var(--panel2)}
+.task .box{flex:none;width:22px;height:22px;border-radius:7px;border:2px solid var(--line);margin-top:1px;display:flex;align-items:center;justify-content:center;transition:all .15s}
+.task.t-train .box{border-color:var(--train)}
+.task.t-media .box{border-color:var(--media)}
+.task.checked .box{background:var(--done);border-color:var(--done)}
+.task.checked .box::after{content:"✓";color:#0C0E11;font-size:13px;font-weight:700}
+.task .body{flex:1}
+.task .name{font-size:15px;font-weight:500}
+.task.checked .name{color:var(--muted);text-decoration:line-through}
+.task .note{font-size:12.5px;color:var(--muted);margin-top:1px}
+.task .tag{font-family:'DM Mono',monospace;font-size:9px;text-transform:uppercase;letter-spacing:.08em;padding:2px 7px;border-radius:20px;margin-top:5px;display:inline-block}
+.task.t-train .tag{color:var(--train);background:var(--train-dim)}
+.task.t-media .tag{color:var(--media);background:var(--media-dim)}
+.task.optional .name::after{content:" · optional";font-size:11px;color:var(--muted);font-weight:400;text-decoration:none}
+.rest-note{color:var(--muted);font-size:14px;padding:6px 10px}
+
+/* ---- hang logger ---- */
+.hang-row{display:flex;gap:10px;align-items:center}
+.hang-row input{flex:1;background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:11px 12px;color:var(--text);font-family:'DM Mono',monospace;font-size:16px}
+.hang-row input::placeholder{color:var(--muted)}
+.btn{background:var(--train);color:#0C0E11;font-weight:700;font-size:14px;padding:11px 18px;border-radius:10px}
+.btn:active{opacity:.85}
+.spark-wrap{margin-top:14px}
+.spark-meta{display:flex;justify-content:space-between;font-family:'DM Mono',monospace;font-size:11px;color:var(--muted);margin-bottom:4px}
+.spark-meta b{color:var(--train);font-weight:500}
+svg.spark{width:100%;height:52px;display:block}
+
+/* ---- content pipeline ---- */
+.post-row{display:flex;align-items:center;gap:12px;padding:10px;border-radius:10px}
+.post-row + .post-row{margin-top:2px}
+.post-row .when{font-family:'DM Mono',monospace;font-size:11px;color:var(--muted);width:76px;flex:none;line-height:1.3}
+.post-row .what{flex:1;font-size:14.5px;font-weight:500}
+.status{font-family:'DM Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:.06em;padding:6px 11px;border-radius:20px;border:1px solid var(--line);color:var(--muted);flex:none}
+.status.s1{border-color:var(--media);color:var(--media)}
+.status.s2{border-color:#C9A94E;color:#C9A94E}
+.status.s3{border-color:var(--done);color:var(--done);background:rgba(61,214,140,.1)}
+
+/* ---- stats ---- */
+.stats{display:flex;gap:10px;margin-bottom:14px}
+.stat{flex:1;background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:13px 8px;text-align:center}
+.stat .num{font-family:'DM Mono',monospace;font-size:22px;font-weight:500}
+.stat .lab{font-family:'DM Mono',monospace;font-size:9.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-top:3px}
+.stat.hot .num{color:var(--train)}
+
+/* ---- launch checklist ---- */
+.launch .card-title{color:var(--media)}
+.launch-toggle{font-family:'DM Mono',monospace;font-size:11px;color:var(--muted)}
+.dismiss{width:100%;margin-top:10px;font-family:'DM Mono',monospace;font-size:11px;color:var(--muted);padding:9px;border:1px dashed var(--line);border-radius:10px}
+.hidden{display:none}
+footer{text-align:center;font-family:'DM Mono',monospace;font-size:10px;color:var(--muted);margin-top:22px;letter-spacing:.05em}
+@media (prefers-reduced-motion: reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>Couch <span class="accent">→</span> Ninja</h1>
+    <div class="sub" id="weekLabel"></div>
+  </div>
+  <button class="mode-toggle" id="modeToggle" aria-label="Toggle gym days"></button>
+</header>
+
+<div class="stats">
+  <div class="stat"><div class="num" id="statWeek">0%</div><div class="lab">This week</div></div>
+  <div class="stat hot"><div class="num" id="statStreak">0</div><div class="lab">Day streak</div></div>
+  <div class="stat"><div class="num" id="statHang">—</div><div class="lab">Best hang</div></div>
+</div>
+
+<div class="card launch" id="launchCard">
+  <div class="card-head">
+    <div class="card-title">Page launch checklist</div>
+    <button class="launch-toggle" id="launchToggle">hide</button>
+  </div>
+  <div id="launchBody"></div>
+  <button class="dismiss hidden" id="launchDismiss">Launch complete — remove this checklist</button>
+</div>
+
+<div class="course" id="course"><div class="fill" id="courseFill"></div></div>
+
+<div class="card">
+  <div class="card-head">
+    <div class="card-title" id="dayTitle"></div>
+    <div class="card-meta" id="dayMeta"></div>
+  </div>
+  <div id="taskList"></div>
+</div>
+
+<div class="card hidden" id="hangCard">
+  <div class="card-head">
+    <div class="card-title">Dead hang log</div>
+    <div class="card-meta">seconds</div>
+  </div>
+  <div class="hang-row">
+    <input type="number" inputmode="numeric" id="hangInput" placeholder="Best hang today (sec)" min="0" max="600">
+    <button class="btn" id="hangSave">Log</button>
+  </div>
+  <div class="spark-wrap" id="sparkWrap"></div>
+</div>
+
+<div class="card">
+  <div class="card-head">
+    <div class="card-title">Content pipeline</div>
+    <div class="card-meta">tap status to advance</div>
+  </div>
+  <div id="postList"></div>
+</div>
+
+<footer>ONE YEAR TO WORLD FINALS · KEEP CLIMBING</footer>
+
+<script>
+(function(){
+"use strict";
+const KEY="c2n_v1";
+const store=load();
+function load(){try{return JSON.parse(localStorage.getItem(KEY))||{}}catch(e){return{}}}
+function save(){try{localStorage.setItem(KEY,JSON.stringify(store))}catch(e){}}
+store.days=store.days||{};
+store.hangs=store.hangs||{};      // date -> seconds
+store.posts=store.posts||{};      // weekKey -> {mon:0-3, wed:0-3, fri:0-3}
+store.launch=store.launch||{};
+store.mode=store.mode||"tuewed";  // tuewed | tuethu
+
+/* ---------- dates ---------- */
+const DAY_MS=86400000;
+function fmt(d){return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")}
+function monday(d){const x=new Date(d);const dow=(x.getDay()+6)%7;x.setDate(x.getDate()-dow);x.setHours(0,0,0,0);return x}
+const today=new Date();today.setHours(0,0,0,0);
+const weekStart=monday(today);
+const weekKey=fmt(weekStart);
+const DOW=["MON","TUE","WED","THU","FRI","SAT","SUN"];
+const DOW_FULL=["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"];
+let selected=Math.min((today.getDay()+6)%7,6);
+
+/* ---------- task plans ---------- */
+function planFor(dow,mode){
+  const gym=[{id:"gym",n:"Gym session with coach",note:"Follow coach's programming",t:"train"},
+             {id:"film",n:"Tripod up — film the session",note:"Record everything, sort later",t:"media"}];
+  const hwA=[{id:"hang",n:"Dead hangs ×3",note:"Max effort, 90s rest — log below",t:"train"},
+             {id:"push",n:"Pushup progression 3×8",note:"Hybrid Calisthenics level",t:"train"},
+             {id:"row",n:"Row progression 3×8",note:"",t:"train"},
+             {id:"plank",n:"Plank ×2 max holds",note:"",t:"train"}];
+  const recov=[{id:"stairs",n:"Stairs — 5 round trips",note:"Already in your routine",t:"train"},
+               {id:"walk",n:"Walk with Dana",note:"1–2 miles",t:"train",opt:true}];
+  if(mode==="tuewed"){
+    switch(dow){
+      case 0:return [{id:"weigh",n:"Monday weigh-in",note:"Log it — feeds the Monday post",t:"train"},...hwA,{id:"postlive",n:"Confirm progress post is live",note:"Publishes 12:00pm",t:"media"}];
+      case 1:return gym;
+      case 2:return [...gym,{id:"mark",n:"Mark 2 best clip timestamps",note:"5 min, phone notes",t:"media"},{id:"clip",n:"Edit + post training clip",note:"CapCut template · live 6:30pm",t:"media"}];
+      case 3:return recov;
+      case 4:return [...hwA,{id:"postlive",n:"Confirm tip post is live",note:"Publishes 7:30am",t:"media"}];
+      case 5:return [{id:"flex",n:"Flex day movement",note:"Walk, play with the girls, or rest",t:"train",opt:true}];
+      case 6:return [{id:"edit",n:"Content hour: edit clips",note:"~20 min in CapCut",t:"media"},{id:"write",n:"Write Monday + Friday posts",note:"~10 min",t:"media"},{id:"sched",n:"Schedule both in Business Suite",note:"~10 min",t:"media"}];
+    }
+  }else{
+    switch(dow){
+      case 0:return [{id:"weigh",n:"Monday weigh-in",note:"Log it — feeds the Monday post",t:"train"},...hwA,{id:"postlive",n:"Confirm progress post is live",note:"Publishes 12:00pm",t:"media"}];
+      case 1:return gym;
+      case 2:return [...hwA,{id:"clip",n:"Edit + post training clip",note:"Tuesday's footage · live 6:30pm",t:"media"}];
+      case 3:return gym.concat([{id:"mark",n:"Mark 2 best clip timestamps",note:"5 min, phone notes",t:"media"}]);
+      case 4:return recov.concat([{id:"postlive",n:"Confirm tip post is live",note:"Publishes 7:30am",t:"media"}]);
+      case 5:return [{id:"flex",n:"Flex day movement",note:"Walk, play with the girls, or rest",t:"train",opt:true}];
+      case 6:return [{id:"edit",n:"Content hour: edit clips",note:"~20 min in CapCut",t:"media"},{id:"write",n:"Write Monday + Friday posts",note:"~10 min",t:"media"},{id:"sched",n:"Schedule both in Business Suite",note:"~10 min",t:"media"}];
+    }
+  }
+  return [];
+}
+function hangDay(dow,mode){return mode==="tuewed"?(dow===0||dow===4):(dow===0||dow===2)}
+
+/* ---------- launch checklist ---------- */
+const LAUNCH=[
+  {id:"page",n:"Create page + unpublish/deactivate"},
+  {id:"handles",n:"Claim handle on FB / IG / TikTok"},
+  {id:"pfp",n:"Profile photo (your face) + cover photo"},
+  {id:"bio",n:"Add intro + about section"},
+  {id:"posts3",n:"Draft 3 launch posts (Zoey intro pinned)"},
+  {id:"golive",n:"World Finals week: publish + invite + share"}
+];
+
+/* ---------- day completion helpers ---------- */
+function dateForDow(dow){return fmt(new Date(weekStart.getTime()+dow*DAY_MS))}
+function tasksDone(dateStr,tasks){
+  const d=store.days[dateStr]||{};
+  const req=tasks.filter(t=>!t.opt);
+  if(!req.length)return null;
+  return req.every(t=>d[t.id]);
+}
+
+/* ---------- render: course rail ---------- */
+function renderCourse(){
+  const c=document.getElementById("course");
+  c.querySelectorAll(".obstacle").forEach(n=>n.remove());
+  const todayDow=(today.getDay()+6)%7;
+  let lastDone=-1;
+  for(let i=0;i<7;i++){
+    const ds=dateForDow(i);
+    const done=tasksDone(ds,planFor(i,store.mode));
+    const el=document.createElement("button");
+    el.className="obstacle"+(done?" done":"")+(i===todayDow&&fmt(today)===ds?" today":"")+(i===selected?" selected":"");
+    el.setAttribute("aria-label",DOW_FULL[i]);
+    el.innerHTML='<span class="node">'+(done?"✓":new Date(ds+"T12:00").getDate())+'</span><span class="lbl">'+DOW[i]+"</span>";
+    el.addEventListener("click",()=>{selected=i;renderAll()});
+    c.appendChild(el);
+    if(done&&lastDone===i-1)lastDone=i;
+  }
+  const fill=document.getElementById("courseFill");
+  fill.style.width=lastDone>=0?((lastDone/6)*100*0.905)+"%":"0";
+}
+
+/* ---------- render: day tasks ---------- */
+function renderDay(){
+  const ds=dateForDow(selected);
+  const tasks=planFor(selected,store.mode);
+  document.getElementById("dayTitle").textContent=DOW_FULL[selected];
+  document.getElementById("dayMeta").textContent=ds;
+  const list=document.getElementById("taskList");
+  list.innerHTML="";
+  if(!tasks.length){list.innerHTML='<div class="rest-note">Full rest. Recovery is training.</div>';}
+  const dayState=store.days[ds]||(store.days[ds]={});
+  tasks.forEach(t=>{
+    const b=document.createElement("button");
+    b.className="task t-"+(t.t==="train"?"train":"media")+(dayState[t.id]?" checked":"")+(t.opt?" optional":"");
+    b.innerHTML='<span class="box"></span><span class="body"><span class="name">'+t.n+'</span>'+(t.note?'<span class="note" style="display:block">'+t.note+'</span>':'')+'<span class="tag">'+(t.t==="train"?"training":"content")+'</span></span>';
+    b.addEventListener("click",()=>{dayState[t.id]=!dayState[t.id];save();renderAll()});
+    list.appendChild(b);
+  });
+  // hang card
+  const hc=document.getElementById("hangCard");
+  if(hangDay(selected,store.mode)){hc.classList.remove("hidden");renderHang(ds);}
+  else hc.classList.add("hidden");
+}
+
+/* ---------- render: hang log ---------- */
+function renderHang(ds){
+  const input=document.getElementById("hangInput");
+  input.value=store.hangs[ds]||"";
+  const entries=Object.keys(store.hangs).sort().map(k=>({d:k,v:store.hangs[k]})).filter(e=>e.v>0);
+  const wrap=document.getElementById("sparkWrap");
+  if(entries.length<2){wrap.innerHTML=entries.length===1?'<div class="spark-meta"><span>First entry logged</span><b>'+entries[0].v+'s</b></div>':"";return;}
+  const last=entries.slice(-12);
+  const max=Math.max(...last.map(e=>e.v)),min=Math.min(...last.map(e=>e.v));
+  const W=320,H=48,pad=4;
+  const pts=last.map((e,i)=>{
+    const x=pad+i*(W-2*pad)/(last.length-1);
+    const y=max===min?H/2:H-pad-((e.v-min)/(max-min))*(H-2*pad);
+    return x.toFixed(1)+","+y.toFixed(1);
+  }).join(" ");
+  wrap.innerHTML='<div class="spark-meta"><span>'+last[0].d.slice(5)+' → '+last[last.length-1].d.slice(5)+'</span><b>best '+max+'s</b></div>'+
+  '<svg class="spark" viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="none" aria-label="Dead hang trend"><polyline fill="none" stroke="#FF5A36" stroke-width="2" points="'+pts+'"/></svg>';
+}
+document.getElementById("hangSave").addEventListener("click",()=>{
+  const ds=dateForDow(selected);
+  const v=parseInt(document.getElementById("hangInput").value,10);
+  if(v>0){store.hangs[ds]=v;save();renderAll();}
+});
+
+/* ---------- render: content pipeline ---------- */
+const POSTS=[{k:"mon",when:"MON 12:00P",what:"Progress update"},{k:"wed",when:"WED 6:30P",what:"Training clip"},{k:"fri",when:"FRI 7:30A",what:"Tip / encouragement"}];
+const STATUS=["not started","drafted","scheduled","live"];
+function renderPosts(){
+  const wk=store.posts[weekKey]||(store.posts[weekKey]={mon:0,wed:0,fri:0});
+  const list=document.getElementById("postList");
+  list.innerHTML="";
+  POSTS.forEach(p=>{
+    const s=wk[p.k]||0;
+    const row=document.createElement("div");
+    row.className="post-row";
+    row.innerHTML='<span class="when">'+p.when+'</span><span class="what">'+p.what+'</span>';
+    const btn=document.createElement("button");
+    btn.className="status s"+s;
+    btn.textContent=STATUS[s];
+    btn.addEventListener("click",()=>{wk[p.k]=(s+1)%4;save();renderAll()});
+    row.appendChild(btn);
+    list.appendChild(row);
+  });
+}
+
+/* ---------- render: launch ---------- */
+function renderLaunch(){
+  const card=document.getElementById("launchCard");
+  if(store.launchDismissed){card.classList.add("hidden");return;}
+  const body=document.getElementById("launchBody");
+  const collapsed=store.launchCollapsed;
+  document.getElementById("launchToggle").textContent=collapsed?"show":"hide";
+  body.classList.toggle("hidden",!!collapsed);
+  if(collapsed){document.getElementById("launchDismiss").classList.add("hidden");return;}
+  body.innerHTML="";
+  let allDone=true;
+  LAUNCH.forEach(t=>{
+    const done=!!store.launch[t.id];
+    if(!done)allDone=false;
+    const b=document.createElement("button");
+    b.className="task t-media"+(done?" checked":"");
+    b.innerHTML='<span class="box"></span><span class="body"><span class="name">'+t.n+'</span></span>';
+    b.addEventListener("click",()=>{store.launch[t.id]=!done;save();renderLaunch()});
+    body.appendChild(b);
+  });
+  document.getElementById("launchDismiss").classList.toggle("hidden",!allDone);
+}
+document.getElementById("launchToggle").addEventListener("click",()=>{store.launchCollapsed=!store.launchCollapsed;save();renderLaunch()});
+document.getElementById("launchDismiss").addEventListener("click",()=>{store.launchDismissed=true;save();renderLaunch()});
+
+/* ---------- render: stats & header ---------- */
+function renderStats(){
+  let req=0,done=0;
+  for(let i=0;i<7;i++){
+    const ds=dateForDow(i);const d=store.days[ds]||{};
+    planFor(i,store.mode).forEach(t=>{if(!t.opt){req++;if(d[t.id])done++;}});
+  }
+  document.getElementById("statWeek").textContent=req?Math.round(done/req*100)+"%":"0%";
+  // streak: consecutive completed days ending yesterday-or-today
+  let streak=0;
+  for(let i=0;i<180;i++){
+    const d=new Date(today.getTime()-i*DAY_MS);
+    const dow=(d.getDay()+6)%7;
+    const t=planFor(dow,store.mode);
+    const ok=tasksDone(fmt(d),t);
+    if(ok===null){if(i===0)continue;streak++;continue;} // rest day counts if streak alive
+    if(ok)streak++;
+    else{if(i===0)continue;break;}
+  }
+  document.getElementById("statStreak").textContent=streak;
+  const hangs=Object.values(store.hangs).filter(v=>v>0);
+  document.getElementById("statHang").textContent=hangs.length?Math.max(...hangs)+"s":"—";
+  const end=new Date(weekStart.getTime()+6*DAY_MS);
+  document.getElementById("weekLabel").textContent="WEEK OF "+weekKey+" → "+fmt(end).slice(5);
+}
+function renderMode(){
+  document.getElementById("modeToggle").innerHTML="GYM: <b>"+(store.mode==="tuewed"?"TUE+WED":"TUE+THU")+"</b> ⇄";
+}
+document.getElementById("modeToggle").addEventListener("click",()=>{store.mode=store.mode==="tuewed"?"tuethu":"tuewed";save();renderAll()});
+
+function renderAll(){renderMode();renderCourse();renderDay();renderPosts();renderLaunch();renderStats();}
+renderAll();
+})();
+</script>
+</body>
+</html>
